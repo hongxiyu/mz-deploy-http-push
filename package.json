@@ -6,10 +6,18 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mz-team/mz-deploy-http-push.git"
+  },
   "keywords": [
     "mz",
     "fis"
   ],
   "author": "kaiye",
-  "license": "MIT"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mz-team/mz-deploy-http-push/issues"
+  },
+  "homepage": "https://github.com/mz-team/mz-deploy-http-push#readme"
 }
