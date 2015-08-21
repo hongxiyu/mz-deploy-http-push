@@ -43,10 +43,22 @@ function upload(receiver, to, params, release, content, file, callback) {
 }
 
 module.exports = function(options, modified, total, callback) {
+  // options.publist = 'publist.txt';
+
+  var _ = fis.util, publist = [];
+
+  if(_.isFile(options.publist)){
+    publist = _.read(options.publist).split(/\s+/);
+  }
+
   if (!options.to) {
     throw new Error('options.to is required!');
   } else if (!options.receiver) {
     throw new Error('options.receiver is required!');
+  }
+
+  if (options.publist && publist.length === 0){
+    throw new Error('publist file is empty, please make it!');
   }
 
   var to = options.to;
@@ -55,24 +67,26 @@ module.exports = function(options, modified, total, callback) {
 
   var steps = [];
 
+
   modified.forEach(function(file) {
     var reTryCount = options.retry;
+    if(!options.publist || publist.indexOf(file.subpath.replace(/^\//,'')) > -1){
+      steps.push(function(next) {
+        var _upload = arguments.callee;
 
-    steps.push(function(next) {
-      var _upload = arguments.callee;
-
-      upload(receiver, to, params, file.getHashRelease(), file.getContent(), file, function(error) {
-        if (error) {
-          if (!--reTryCount) {
-            throw new Error(error);
+        upload(receiver, to, params, file.getHashRelease(), file.getContent(), file, function(error) {
+          if (error) {
+            if (!--reTryCount) {
+              throw new Error(error);
+            } else {
+              _upload();
+            }
           } else {
-            _upload();
+            next();
           }
-        } else {
-          next();
-        }
-      });
-    });
+        });
+      }); 
+    }
   });
 
   _.reduceRight(steps, function(next, current) {
