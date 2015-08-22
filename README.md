@@ -4,9 +4,17 @@
 
 * `to`、`receiver` 参数支持 function 传入
 * 增加 `params` 参数传递给后端 receiver 接口，同时可在 `to` function 中动态修改 params 配置
+* 增加 `publist` 参数，根据 pulist 指向的文本文件配置需要上传的文件列表
 
+## publist文件示例
 
-##示例
+```
+/*
+/php-simulation-env/mock-data/**
+/plugin/compiler.placeholder.php
+```
+
+## 插件调用示例
 
 ```javascript
 
@@ -16,6 +24,7 @@ fis.media('prod')
       to: '../../dist'
     }),fis.plugin('http-push', {
       receiver: 'http://www.example.com/receiver.php',
+      publist: '_publist.txt',
       params:{
         username: 'kaiye'  
       },

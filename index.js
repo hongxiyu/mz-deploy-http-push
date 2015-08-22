@@ -42,6 +42,17 @@ function upload(receiver, to, params, release, content, file, callback) {
   );
 }
 
+
+function isMatchList(arr, filepath){
+  for (var i = 0, len = arr.length; i < len; i++) {
+    var pattern = arr[i].trim();
+    if(pattern.length && fis.util.filter(filepath, pattern)){
+      return true;
+    }
+  }
+  return false;
+}
+
 module.exports = function(options, modified, total, callback) {
   // options.publist = 'publist.txt';
 
@@ -67,10 +78,9 @@ module.exports = function(options, modified, total, callback) {
 
   var steps = [];
 
-
   modified.forEach(function(file) {
     var reTryCount = options.retry;
-    if(!options.publist || publist.indexOf(file.subpath.replace(/^\//,'')) > -1){
+    if(!options.publist || isMatchList(publist, file.subpath)){
       steps.push(function(next) {
         var _upload = arguments.callee;
 
