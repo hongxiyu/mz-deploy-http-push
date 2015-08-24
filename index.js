@@ -16,7 +16,7 @@ function upload(receiver, to, params, release, content, file, callback) {
     to: path.join(to,release)
   });
 
-  var subpath = file.subpath;
+  var subpath = file.release;
   fis.util.upload(
     //url, request options, post data, file
     receiver, null, postdata, content, subpath,
