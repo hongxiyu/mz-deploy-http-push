@@ -56,12 +56,14 @@ function isMatchList(arr, filepath){
 module.exports = function(options, modified, total, callback) {
   // options.publist = 'publist.txt';
 
-  var _ = fis.util, publist = [];
+  var _ = fis.util, 
+      publist = [], 
+      publistFilePath = path.join(fis.project.getProjectPath(),options.publist);
 
-  if(_.isFile(options.publist)){
-    publist = _.read(options.publist).split(/\s+/);
+  if(_.isFile(publistFilePath)){
+    publist = _.read(publistFilePath).split(/\s+/);
+    console.log(publist);
   }
-
   if (!options.to) {
     throw new Error('options.to is required!');
   } else if (!options.receiver) {
