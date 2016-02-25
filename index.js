@@ -53,25 +53,49 @@ function isMatchList(arr, filepath){
   return false;
 }
 
-module.exports = function(options, modified, total, callback) {
-  // options.publist = 'publist.txt';
+function isFileChanged(options,file){
+    var fileLocalPath = _(options.toLocal,file.getHashRelease());
 
+    //文件是否存在
+    if(_.isFile(fileLocalPath)){
+        //如果是静态资源，因为已经发布过 CDN 所以无需重新发布
+        if(file.useHash){
+            return false;
+        //如果是非静态资源，看内容是否相同
+        }else{
+            if(_.md5(_.read(fileLocalPath)) ===  file.getHash()){
+                return false;
+            }else{
+                return true;
+            }  
+        }
+    }else{
+        return true;
+    }
+}
+
+module.exports = function(options, modified, total, callback) {
   var _ = fis.util, 
-      publist = [], 
-      publistFilePath = path.join(fis.project.getProjectPath(),options.publist);
+      publist = [],
+      isAutoPublist = false,
+      //目录不存在，初始化的时候，避免自动模式上传所有文件
+      hasLocalDistDir = _.isDir(options.toLocal),
+      publistFilePath = path.join(fis.project.getProjectPath(),options.publist),
+      publistResult = [];
 
   if(_.isFile(publistFilePath)){
-    publist = _.read(publistFilePath).split(/\s+/);
-    console.log(publist);
+    publist = _.read(publistFilePath).toString().replace(/^#.*$/gm,'').trim();
+    if(publist.length){
+        publist = publist.split(/\s+/);
+    }else{
+        isAutoPublist = !! options.toLocal;
+    }
   }
+
   if (!options.to) {
     throw new Error('options.to is required!');
   } else if (!options.receiver) {
     throw new Error('options.receiver is required!');
-  }
-
-  if (options.publist && publist.length === 0){
-    throw new Error('publist file is empty, please make it!');
   }
 
   var to = options.to;
@@ -82,10 +106,12 @@ module.exports = function(options, modified, total, callback) {
 
   modified.forEach(function(file) {
     var reTryCount = options.retry;
-    if(!options.publist || isMatchList(publist, file.subpath)){
+    
+    if(!options.publist || isMatchList(publist, file.subpath) || (isAutoPublist && hasLocalDistDir && isFileChanged(options,file))){
+        publistResult.push(file.subpath);
       steps.push(function(next) {
         var _upload = arguments.callee;
-
+        
         upload(receiver, to, params, file.getHashRelease(), file.getContent(), file, function(error) {
           if (error) {
             if (!--reTryCount) {
@@ -99,6 +125,10 @@ module.exports = function(options, modified, total, callback) {
         });
       }); 
     }
+    //最后写 local
+    if(options.toLocal){
+        _.write(_(options.toLocal,file.getHashRelease()), file.getContent());        
+    }
   });
 
   _.reduceRight(steps, function(next, current) {
@@ -106,6 +136,15 @@ module.exports = function(options, modified, total, callback) {
       current(next);
     };
   }, callback)();
+  
+  //将发布列表写回 publist，用于发布 prod 或参考
+  if(isAutoPublist && publistResult.length){
+      var publistFileContent = _.read(publistFilePath).toString();
+      var publistResultTxt = publistResult.reduce(function(previousValue, currentValue, index, array){
+            return previousValue + '\n# ' + currentValue;
+          },'\n#\n# ====== ' + new Date().toLocaleString() + ' ======\n#');
+      _.write(publistFilePath, publistFileContent + publistResultTxt);
+  }
 };
 
 module.exports.options = {
