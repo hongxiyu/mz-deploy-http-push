@@ -10,7 +10,7 @@
 ## publist 文件内容示例
 
 ```
-# 可以写注释，当规则为空时，则启用自动匹配发布模式，自动判断修改的文件列表并以注释形式回写至本配置文件
+# 可以写注释（#号或;号开头），当规则为空时，则启用自动匹配发布模式，自动判断修改的文件列表并以注释形式回写至本配置文件，文件不存在时不回写
 /*
 /php-simulation-env/mock-data/**
 /plugin/compiler.placeholder.php
@@ -27,6 +27,8 @@ fis.media('prod')
         receiver: 'http://www.example.com/receiver.php',
         publist: '_publist.ini',
         toLocal: __dirname + '/../dist',
+        //写入 local dist 的文件若符合以下 pattern 则重置为空文件
+        emptyFilePattern: '*.{png,jpg,gif,ttf,woff,eot,svg,mp3,mp4,webm,flv}',
         params:{
             username: 'kaiye'  
         },
