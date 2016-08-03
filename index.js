@@ -9,7 +9,6 @@ function upload(receiver, to, params, release, content, file, callback) {
   receiver = typeof receiver === 'function' ? receiver(release, file, params) : receiver;
   to = typeof to === 'function' ? to(release, file, params) : to;
 
-  //do not upload
   if (!to) {
     callback();
     return;
@@ -23,13 +22,16 @@ function upload(receiver, to, params, release, content, file, callback) {
     //url, request options, post data, file
     receiver, null, postdata, content, subpath,
     function (err, res) {
-      // console.log(err,res);
-      // return;
+      var time = '[' + fis.log.now(true) + ']';
       if (err || res.trim() != '0') {
-        callback('upload file [' + subpath + '] to [' + to +
-          '] by receiver [' + receiver + '] error [' + (err || res) + ']');
+        var msg = ' - '.red.bold +
+          time.grey + ' ' +
+          subpath.replace(/^\//, '') +
+          ' [ERROR] '.red.bold +
+          (err || res) +
+          '\n';
+        callback(msg);
       } else {
-        var time = '[' + fis.log.now(true) + ']';
         process.stdout.write(
           ' - '.green.bold +
           time.grey + ' ' +
@@ -56,6 +58,7 @@ function isMatchList(arr, filepath) {
 
 module.exports = function (options, modified, total, callback) {
 
+
   if (!options.to) {
     throw new Error('options.to is required!');
   } else if (!options.receiver) {
@@ -66,6 +69,7 @@ module.exports = function (options, modified, total, callback) {
   var publistFilePath = path.join(fis.project.getProjectPath(), options.publist || '');
   var allFileMap = {};
   var publistResult = [];
+  var errorUploadList = [];
 
   if (_.isFile(publistFilePath)) {
     publist = _.read(publistFilePath).toString().replace(/^(#|;).*$/gm, '').trim();
@@ -104,6 +108,7 @@ module.exports = function (options, modified, total, callback) {
   var params = options.params || {};
   var uploadSteps = [];
 
+
   publistResult.forEach(function (releaseFilename) {
     var retryCount = options.retry;
     var file = allFileMap[releaseFilename];
@@ -115,9 +120,15 @@ module.exports = function (options, modified, total, callback) {
         upload(receiver, to, params, releaseFilename, file.getContent(), file, function (error) {
           if (error) {
             if (!--retryCount) {
-              throw new Error(error);
+              if(errorUploadList.length < options.maxErrorNum){
+                errorUploadList.push(file.subpath);
+                process.stdout.write(error);
+                next();
+              }else{
+                throw new Error('上传出错次数过多，请检查出错原因！' + error);
+              }
             } else {
-              _upload();
+              _upload(next);
             }
           } else {
             next();
@@ -127,22 +138,32 @@ module.exports = function (options, modified, total, callback) {
     }
   });
 
+  // 上传是一个异步操作，所以需要这样写
   _.reduceRight(uploadSteps, function (next, current) {
     return function () {
       current(next);
     };
-  }, callback)();
+  }, function(){
+    //将发布列表写回 publist，用于发布 prod 或参考
+    if (publistFilePath && !publist.length && publistResult.length) {
+      var publistFileContent = _.read(publistFilePath).toString();
+      var publistResultTxt = publistResult.reduce(function (previousValue, currentValue, index) {
+        return previousValue + '\n# ' + currentValue;
+      }, '\n#\n# ====== ' + new Date().toLocaleString() + ' ======\n#');
 
-  //将发布列表写回 publist，用于发布 prod 或参考
-  if (publistFilePath && !publist.length && publistResult.length) {
-    var publistFileContent = _.read(publistFilePath).toString();
-    var publistResultTxt = publistResult.reduce(function (previousValue, currentValue, index) {
-      return previousValue + '\n# ' + currentValue;
-    }, '\n#\n# ====== ' + new Date().toLocaleString() + ' ======\n#');
-    _.write(publistFilePath, publistFileContent + publistResultTxt);
-  }
+      publistResultTxt = errorUploadList.reduce(function (previousValue, currentValue, index) {
+        return previousValue + '\n# ' + currentValue;
+      }, publistResultTxt + '\n#\n# ====== Error Upload List File ======\n#');
+
+      _.write(publistFilePath, publistFileContent + publistResultTxt);
+    }
+
+    callback();
+  })();
+
 };
 
 module.exports.options = {
-  retry: 2
+  retry: 2,
+  maxErrorNum: 10
 };
