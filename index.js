@@ -100,7 +100,7 @@ module.exports = function (options, modified, total, callback) {
     var localDistBasename = path.basename(path.normalize(options.toLocal));
     var localDistPattern = new RegExp("^(\\.\\." + path.sep + ")*" + localDistBasename, "gm");
     var changeFileList = execSync('cd '+ options.toLocal + ' && git ls-files -mo ').toString().trim();
-    publistResult = changeFileList.replace(localDistPattern, "").split(/\s+/);
+    publistResult = changeFileList.replace(localDistPattern, "").replace(/^([^\\\/])/gm, path.sep + '$1').split(/\s+/);
   }
 
   var to = options.to;
